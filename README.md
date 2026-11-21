@@ -16,10 +16,9 @@ An empirical study of **authority anchoring bias** in language models answering 
 6. [Dataset](#dataset)
 7. [Models Evaluated](#models-evaluated)
 8. [Metrics and Statistics](#metrics-and-statistics)
-9. [Results](#results)
-10. [How to Reproduce](#how-to-reproduce)
-11. [Data Notes and Limitations](#data-notes-and-limitations)
-12. [Author](#author)
+9. [How to Reproduce](#how-to-reproduce)
+10. [Data Notes and Limitations](#data-notes-and-limitations)
+11. [Author](#author)
 
 ---
 
@@ -171,33 +170,6 @@ ALLAM-2 7B, GPT-OSS 120B, GPT-OSS 20B, Gemini 3.1 Flash-Lite, Gemini 3.5 Flash-L
 | Unevaluable response | No option letter could be extracted; excluded from accuracy |
 
 **Statistical testing:** for each model and anchor, an exact two-sided binomial test (McNemar-equivalent) is applied to the discordant pairs (flips versus recoveries). Bonferroni correction is applied across all 14 comparisons (7 models x 2 anchors), with significance at corrected p < 0.05.
-
----
-
-## Results
-
-### Seven-model comparison (from `paper_done.ipynb`)
-
-Accuracy in %, on paired questions. Drop is in percentage points. Flips are questions correct at baseline and wrong under the anchor.
-
-| Model | Baseline | Anchor 1 | Anchor 2 | Drop A1 | Drop A2 | Flips A1 | Flips A2 |
-|---|---|---|---|---|---|---|---|
-| gemma-7b-it-lora | 66.0 | 11.0 | 9.0 | 55.0 | 57.0 | 55 | 57 |
-| allam-2-7b | 83.0 | 36.0 | 19.0 | 47.0 | 64.0 | 47 | 66 |
-| llama-3.1-8b-instruct-fast | 93.0 | 56.0 | 49.0 | 37.0 | 44.0 | 38 | 45 |
-| llama-3.1-8b-instruct-fp8 | 87.0 | 55.0 | 55.0 | 32.0 | 32.0 | 33 | 36 |
-| mistral-7b-instruct-v0.2-lora* | 48.5 | 27.8 | 23.4 | 20.6 | 24.5 | 21 | 24 |
-| gemini-3.5-flash-lite | 97.0 | 84.0 | 85.0 | 13.0 | 12.0 | 14 | 14 |
-| gemini-3.1-flash-lite | 99.0 | 95.0 | 91.0 | 4.0 | 8.0 | 4 | 8 |
-
-\* Mistral had 3 unevaluable responses in baseline and in anchor2, so its paired sample is 97 (anchor1) and 94 (anchor2) questions.
-
-**Key observations**
-
-- Every 7B to 8B open model lost substantial accuracy under anchoring. After Bonferroni correction, all of their drops are statistically significant.
-- ALLaM 2 7B was the most affected under Anchor 2 (83% to 19%), and Gemma 7B had the lowest absolute anchored accuracy (11% and 9%).
-- The Gemini Flash-Lite models were the most resistant. For `gemini-3.1-flash-lite`, the Anchor 1 drop was not significant after correction, and its Anchor 2 drop was not significant after correction either. For `gemini-3.5-flash-lite`, the Anchor 1 drop was significant (corrected p about 0.014) and the Anchor 2 drop was not (corrected p about 0.059).
-- Recoveries (wrong to correct under anchoring) were rare, at 0 to 4 per model.
 
 ---
 
