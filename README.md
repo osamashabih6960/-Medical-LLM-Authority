@@ -1,12 +1,8 @@
 # Medical LLM Authority
 
-A source-grounded medical question-answering system that answers only from trusted clinical literature, cites every claim, and refuses to answer when evidence is insufficient.
+A source-grounded medical question-answering system that answers only from trusted medical sources, cites its evidence, and declines to answer when the evidence is insufficient.
 
-![Python](https://img.shields.io/badge/python-3.10+-444?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-444?style=flat-square)
-![Status](https://img.shields.io/badge/status-active-444?style=flat-square)
-
-> **Disclaimer:** This project is for research and educational use. It is not a medical device and does not replace professional medical advice, diagnosis, or treatment.
+> **Disclaimer:** This project is for research and educational purposes only. It is not a medical device and does not replace professional medical advice, diagnosis, or treatment.
 
 ---
 
@@ -16,26 +12,20 @@ A source-grounded medical question-answering system that answers only from trust
 2. [Key Features](#key-features)
 3. [System Architecture](#system-architecture)
 4. [System Design](#system-design)
-5. [Tech Stack](#tech-stack)
-6. [Project Structure](#project-structure)
-7. [Getting Started](#getting-started)
-8. [Configuration](#configuration)
-9. [API Reference](#api-reference)
-10. [Evaluation](#evaluation)
-11. [Safety and Limitations](#safety-and-limitations)
-12. [Roadmap](#roadmap)
-13. [Contributing](#contributing)
-14. [License](#license)
+5. [Safety and Limitations](#safety-and-limitations)
+6. [Roadmap](#roadmap)
+7. [Contributing](#contributing)
+8. [License](#license)
 
 ---
 
 ## Overview
 
-General-purpose LLMs can produce fluent but unverified medical answers. **Medical LLM Authority** addresses this by putting an authority layer between the user and the model:
+General-purpose language models can produce fluent but unverified medical answers. **Medical LLM Authority** adds an authority layer between the user and the model:
 
-- Answers are generated only from a curated, versioned medical knowledge base.
-- Every statement is linked to a source passage.
-- Low-confidence or out-of-scope queries are declined or escalated instead of guessed.
+- Answers are based on trusted medical sources.
+- Every statement is linked to its supporting evidence.
+- Low-confidence or out-of-scope queries are declined instead of guessed.
 
 The goal is trustworthy, auditable output rather than maximum fluency.
 
@@ -43,13 +33,13 @@ The goal is trustworthy, auditable output rather than maximum fluency.
 
 | Feature | Description |
 |---|---|
-| Retrieval-Augmented Generation | Answers are grounded in retrieved clinical documents |
-| Source ranking | Guidelines and peer-reviewed sources outrank secondary content |
-| Citation enforcement | Responses without valid citations are rejected |
-| Safety guardrails | Emergency, dosage, and self-harm queries follow dedicated policies |
-| Confidence scoring | Answers below a threshold are replaced with a safe refusal |
-| Audit logging | Every query, retrieved context, and response is traceable |
-| Modular design | Retriever, generator, and validator can be swapped independently |
+| Source-grounded answers | Responses are built from retrieved medical content |
+| Source authority ranking | Higher-quality sources are given more weight |
+| Citation enforcement | Answers without supporting evidence are rejected |
+| Safety checks | Sensitive and emergency queries follow dedicated rules |
+| Confidence control | Low-confidence answers are replaced with a safe refusal |
+| Audit trail | Queries, evidence, and responses are traceable |
+| Modular design | Each stage can be improved or replaced independently |
 
 ---
 
@@ -57,307 +47,101 @@ The goal is trustworthy, auditable output rather than maximum fluency.
 
 ```mermaid
 flowchart TD
-    U[User / Client] --> API[API Gateway]
-    API --> IG[Input Guardrails]
-    IG --> QP[Query Processor]
-    QP --> RT[Hybrid Retriever]
-
-    subgraph KB[Knowledge Layer]
-        VS[(Vector Store)]
-        KW[(Keyword Index)]
-        DS[(Document Store)]
-    end
-
-    RT --> VS
-    RT --> KW
-    RT --> DS
-    RT --> RR[Re-ranker + Authority Scorer]
-    RR --> PB[Prompt Builder]
-    PB --> LLM[LLM Generator]
-    LLM --> OV[Output Validator]
-    OV --> CF[Confidence and Citation Check]
-    CF -->|pass| RESP[Final Response]
-    CF -->|fail| FB[Safe Fallback / Refusal]
+    U[User] --> IN[Input Layer]
+    IN --> SG[Input Safety Check]
+    SG --> QP[Query Processing]
+    QP --> RT[Retrieval]
+    RT --> KB[(Medical Knowledge Base)]
+    RT --> AR[Authority Ranking]
+    AR --> PB[Prompt Construction]
+    PB --> LLM[LLM Generation]
+    LLM --> OV[Output Validation]
+    OV --> CC[Citation and Confidence Check]
+    CC -->|pass| RESP[Final Answer with Sources]
+    CC -->|fail| FB[Safe Fallback]
     RESP --> U
     FB --> U
-
-    API -.-> LOG[(Audit Log)]
+    IN -.-> LOG[(Audit Log)]
     OV -.-> LOG
 ```
 
 ### Layers
 
-**1. Interface layer**
-REST API that receives queries, handles authentication, rate limiting, and request validation.
-
-**2. Safety layer (input)**
-Classifies the query before any retrieval. Detects emergencies, out-of-scope requests, and prompt-injection attempts.
-
-**3. Retrieval layer**
-Hybrid search combining dense vectors and keyword matching, followed by a re-ranker that applies authority weights per source type.
-
-**4. Generation layer**
-The LLM receives only the retrieved passages and a strict instruction to answer from them and cite them.
-
-**5. Validation layer (output)**
-Verifies that each claim maps to a retrieved passage, checks confidence, and applies medical safety rules before the answer is released.
-
-**6. Observability layer**
-Structured logs and metrics for audit, debugging, and evaluation.
+1. **Input layer** receives the user question.
+2. **Input safety check** screens for emergencies, out-of-scope requests, and unsafe prompts.
+3. **Retrieval layer** finds relevant passages from the medical knowledge base.
+4. **Authority ranking** orders passages by source quality and relevance.
+5. **Generation layer** produces an answer using only the retrieved evidence.
+6. **Validation layer** checks citations, confidence, and safety rules before release.
+7. **Audit log** records each step for review.
 
 ---
 
 ## System Design
 
-### Request flow
+### Request Flow
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant A as API
-    participant G as Input Guard
-    participant R as Retriever
+    participant U as User
+    participant S as System
+    participant R as Retrieval
     participant L as LLM
     participant V as Validator
 
-    C->>A: POST /v1/query
-    A->>G: Classify query
-    G-->>A: allowed / blocked / emergency
-    A->>R: Retrieve top-k passages
-    R-->>A: Ranked passages with authority scores
-    A->>L: Prompt with context and rules
-    L-->>A: Draft answer with citations
-    A->>V: Validate citations and confidence
-    V-->>A: pass / fail
-    A-->>C: Answer with sources or safe fallback
+    U->>S: Ask medical question
+    S->>S: Safety screening
+    S->>R: Find relevant evidence
+    R-->>S: Ranked passages
+    S->>L: Question + evidence + rules
+    L-->>S: Draft answer with citations
+    S->>V: Validate answer
+    V-->>S: Pass or fail
+    S-->>U: Answer with sources or safe fallback
 ```
 
-### Authority scoring
+### Authority Ranking
 
-Each retrieved passage receives a final score:
+Each retrieved passage is scored using these factors:
 
-```
-final_score = w1 * semantic_similarity
-            + w2 * source_authority
-            + w3 * recency
-            + w4 * evidence_level
-```
-
-| Source type | Authority weight |
+| Factor | Purpose |
 |---|---|
-| Clinical practice guidelines | High |
-| Systematic reviews and meta-analyses | High |
-| Randomized controlled trials | Medium-High |
-| Textbooks and regulatory documents | Medium |
-| Observational studies | Medium-Low |
-| Other content | Excluded by default |
+| Relevance | How closely the passage matches the question |
+| Source authority | Guidelines and reviews rank above general content |
+| Recency | Newer evidence is preferred |
+| Evidence level | Stronger study designs rank higher |
 
-Weights are configurable in `config/authority.yaml`.
-
-### Decision policy
+### Decision Policy
 
 | Condition | Behavior |
 |---|---|
-| Emergency symptoms detected | Return emergency guidance, skip generation |
-| No passage above relevance threshold | Refuse, state that evidence is insufficient |
+| Emergency symptoms detected | Return urgent-care guidance, skip generation |
+| No sufficiently relevant evidence | Decline and state that evidence is insufficient |
 | Citation missing or unverifiable | Regenerate once, then fall back |
-| Conflicting sources | Present both, flag the conflict |
+| Conflicting sources | Present both views and flag the conflict |
 | Dosage or prescription request | Provide reference information with a clinician-consult notice |
 
-### Data pipeline
+### Data Flow
 
 ```mermaid
 flowchart LR
-    A[Raw Sources] --> B[Parsing and Cleaning]
+    A[Source Documents] --> B[Cleaning]
     B --> C[Metadata Tagging]
     C --> D[Chunking]
-    D --> E[Embedding]
-    E --> F[(Vector Store)]
-    C --> G[(Document Store)]
-    D --> H[(Keyword Index)]
+    D --> E[Indexing]
+    E --> F[(Knowledge Base)]
 ```
 
-Each document carries metadata: source type, publication date, version, evidence level, and license. This metadata drives authority scoring and citation display.
-
-### Scalability and reliability
-
-- Stateless API workers behind a load balancer
-- Vector store and document store scale independently
-- Response caching for repeated queries
-- Timeouts and circuit breakers around the LLM provider
-- Versioned knowledge base so any answer can be reproduced
-
----
-
-## Tech Stack
-
-| Component | Technology |
-|---|---|
-| Language | Python 3.10+ |
-| API | FastAPI |
-| Embeddings | Sentence-Transformers / provider embeddings |
-| Vector store | Qdrant or FAISS |
-| Keyword search | BM25 |
-| LLM | Configurable (API or local model) |
-| Orchestration | Custom pipeline / LangChain |
-| Storage | PostgreSQL |
-| Containers | Docker, Docker Compose |
-| Testing | Pytest |
-
-> Update this table to match the stack you actually use.
-
----
-
-## Project Structure
-
-```
-Medical-LLM-Authority/
-├── app/
-│   ├── api/              # Routes and request schemas
-│   ├── guardrails/       # Input and output safety checks
-│   ├── retrieval/        # Hybrid search and re-ranking
-│   ├── generation/       # Prompt templates and LLM client
-│   ├── validation/       # Citation and confidence checks
-│   └── core/             # Config, logging, utilities
-├── data/
-│   ├── raw/              # Source documents
-│   └── processed/        # Chunks and metadata
-├── pipelines/            # Ingestion and indexing scripts
-├── config/               # Authority weights and thresholds
-├── evaluation/           # Benchmarks and test sets
-├── tests/
-├── docker-compose.yml
-├── requirements.txt
-└── README.md
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10 or newer
-- Docker (optional, recommended)
-- API key for your LLM provider, if using a hosted model
-
-### Installation
-
-```bash
-git clone https://github.com/osamashabih6960/-Medical-LLM-Authority.git
-cd -Medical-LLM-Authority
-
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-### Build the knowledge base
-
-```bash
-python pipelines/ingest.py --source data/raw
-python pipelines/index.py
-```
-
-### Run the service
-
-```bash
-uvicorn app.main:app --reload
-```
-
-### Run with Docker
-
-```bash
-docker compose up --build
-```
-
-The API is available at `http://localhost:8000` and interactive docs at `http://localhost:8000/docs`.
-
----
-
-## Configuration
-
-Key environment variables in `.env`:
-
-| Variable | Description |
-|---|---|
-| `LLM_PROVIDER` | Model provider name |
-| `LLM_API_KEY` | Provider API key |
-| `EMBEDDING_MODEL` | Embedding model identifier |
-| `VECTOR_STORE_URL` | Vector database connection |
-| `TOP_K` | Number of passages retrieved |
-| `MIN_CONFIDENCE` | Threshold below which answers are refused |
-
-Authority weights and source policies are defined in `config/authority.yaml`.
-
----
-
-## API Reference
-
-### `POST /v1/query`
-
-**Request**
-
-```json
-{
-  "question": "What is the first-line treatment for type 2 diabetes?",
-  "language": "en"
-}
-```
-
-**Response**
-
-```json
-{
-  "answer": "Guidelines recommend lifestyle modification together with metformin as first-line therapy for most adults [1][2].",
-  "confidence": 0.87,
-  "citations": [
-    {
-      "id": 1,
-      "title": "Source title",
-      "source_type": "clinical_guideline",
-      "year": 2024,
-      "passage": "Relevant excerpt"
-    }
-  ],
-  "status": "answered"
-}
-```
-
-`status` is one of `answered`, `refused`, or `emergency`.
-
-### `GET /health`
-
-Returns service status.
-
----
-
-## Evaluation
-
-| Metric | What it measures |
-|---|---|
-| Faithfulness | Share of claims supported by retrieved context |
-| Citation accuracy | Citations that point to the correct passage |
-| Retrieval recall@k | Relevant passages found in the top k |
-| Refusal precision | Correct refusals on unanswerable queries |
-| Latency | End-to-end response time |
-
-Run the evaluation suite:
-
-```bash
-python evaluation/run.py --dataset evaluation/datasets/medqa_subset.json
-```
+Each document keeps metadata such as source type, publication date, and evidence level. This metadata drives ranking and citation display.
 
 ---
 
 ## Safety and Limitations
 
-- Output quality depends on the coverage and freshness of the knowledge base.
-- The system can refuse valid questions when evidence is thin; this is intentional.
+- Answer quality depends on the coverage and freshness of the knowledge base.
+- The system may decline valid questions when evidence is limited; this is intentional.
 - It does not diagnose, prescribe, or replace a clinician.
-- Emergency detection is rule- and model-assisted and is not guaranteed to be complete.
+- Emergency detection is not guaranteed to be complete.
 - Do not enter identifiable patient data unless your deployment meets applicable privacy regulations.
 
 ---
@@ -365,22 +149,18 @@ python evaluation/run.py --dataset evaluation/datasets/medqa_subset.json
 ## Roadmap
 
 - [ ] Multilingual support
-- [ ] Knowledge graph integration
-- [ ] Human-in-the-loop review interface
-- [ ] Automated knowledge base update pipeline
-- [ ] Expanded benchmark coverage
+- [ ] Human-in-the-loop review
+- [ ] Automated knowledge base updates
+- [ ] Expanded evaluation coverage
 
 ---
 
 ## Contributing
 
-Contributions are welcome.
-
 1. Fork the repository
-2. Create a branch: `git checkout -b feature/your-feature`
+2. Create a feature branch
 3. Commit your changes with clear messages
-4. Run tests: `pytest`
-5. Open a pull request
+4. Open a pull request
 
 ---
 
