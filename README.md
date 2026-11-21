@@ -199,21 +199,6 @@ Accuracy in %, on paired questions. Drop is in percentage points. Flips are ques
 - The Gemini Flash-Lite models were the most resistant. For `gemini-3.1-flash-lite`, the Anchor 1 drop was not significant after correction, and its Anchor 2 drop was not significant after correction either. For `gemini-3.5-flash-lite`, the Anchor 1 drop was significant (corrected p about 0.014) and the Anchor 2 drop was not (corrected p about 0.059).
 - Recoveries (wrong to correct under anchoring) were rare, at 0 to 4 per model.
 
-### Six-model master CSV
-
-Computed from the `correct` and `anchor_followed` columns of `MedAnchor_6Models_Master_1800Rows.csv`, excluding rows with errors. Values can differ slightly from the notebook because of different answer parsing.
-
-| Model | Baseline | Anchor 1 | Anchor 2 | Anchor followed A1 | Anchor followed A2 |
-|---|---|---|---|---|---|
-| ALLAM-2 7B | 82.0 | 39.0 | 21.0 | 60.0 | 74.0 |
-| GPT-OSS 20B | 98.0 | 80.0 | 83.0 | 20.0 | 17.0 |
-| Gemini 3.5 Flash-Lite | 98.9 | 84.8 | 86.6 | 14.1 | 12.4 |
-| Qwen 3.8 27B | 97.0 | 91.0 | 94.0 | 7.0 | 5.0 |
-| GPT-OSS 120B | 97.0 | 90.0 | 95.0 | 10.0 | 4.0 |
-| Gemini 3.1 Flash-Lite | 99.0 | 95.0 | 91.0 | 4.0 | 5.0 |
-
-Larger and API-served models follow the misleading statement far less often than the 7B models.
-
 ---
 
 ## How to Reproduce
